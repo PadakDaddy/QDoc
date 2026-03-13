@@ -232,6 +232,11 @@ export class HospitalsService {
       where: { id: hospitalId },
       include: {
         departments: {
+          where: {
+            queues: {
+              some: {},
+            },
+          },
           orderBy: {
             name: 'asc',
           },

@@ -68,43 +68,20 @@ export function RoomSelectPage() {
           }
         })
 
-        const fallback = mapped.length
-          ? mapped
-          : [
-              {
-                id: 'room-a',
-                badge: '5 people waiting',
-                doctorLabel: 'Dr. Green',
-                roomLabel: 'Room 2 · General care',
-              },
-              {
-                id: 'room-b',
-                badge: 'Immediate check-in',
-                doctorLabel: 'Dr. Yellow',
-                roomLabel: 'Room 4 · Family care',
-              },
-            ]
+        if (!mapped.length) {
+          setRoomOptions([])
+          setSelectedRoomId('')
+          setError('No queue-enabled consultation rooms are available right now.')
+          return
+        }
 
-        setRoomOptions(fallback)
-        setSelectedRoomId((current) => current || fallback[0].id)
+        setRoomOptions(mapped)
+        setSelectedRoomId((current) => current || mapped[0].id)
       } catch {
         if (!cancelled) {
-          setRoomOptions([
-            {
-              id: 'room-a',
-              badge: '5 people waiting',
-              doctorLabel: 'Dr. Green',
-              roomLabel: 'Room 2 · General care',
-            },
-            {
-              id: 'room-b',
-              badge: 'Immediate check-in',
-              doctorLabel: 'Dr. Yellow',
-              roomLabel: 'Room 4 · Family care',
-            },
-          ])
-          setSelectedRoomId('room-a')
-          setError('Could not load room data. Showing default rooms.')
+          setRoomOptions([])
+          setSelectedRoomId('')
+          setError('Could not load room data. Please go back and try again.')
         }
       }
     }

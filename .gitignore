@@ -25,3 +25,7 @@ pnpm-debug.log*
 Thumbs.db
 .DS_Store
 
+
+# WPF build artifacts
+hospital-wpf/**/bin/
+hospital-wpf/**/obj/
