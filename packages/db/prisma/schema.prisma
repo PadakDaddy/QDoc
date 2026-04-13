@@ -7,4 +7,394 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Domain models will be introduced on the v1-domain-schema branch.
+enum OrganizationStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  STAFF
+  VIEWER
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum SiteStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum QueueStatus {
+  OPEN
+  PAUSED
+  CLOSED
+}
+
+enum TicketSource {
+  PATIENT_WEB
+  STAFF_WEB
+  IMPORT
+}
+
+enum TicketStatus {
+  WAITING
+  NOTIFIED
+  CALLED
+  IN_SERVICE
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+enum TicketEventType {
+  CREATED
+  STATUS_CHANGED
+  NOTE_ADDED
+  WAIT_ESTIMATE_UPDATED
+  NOTIFICATION_TRIGGERED
+}
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+}
+
+enum NotificationTemplate {
+  SIGN_IN_LINK
+  QUEUE_JOINED
+  QUEUE_ALMOST_READY
+  QUEUE_CALLED
+  QUEUE_CANCELLED
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum AuditActorType {
+  SYSTEM
+  USER
+}
+
+enum AuthChallengePurpose {
+  SIGN_IN
+  EMAIL_OTP
+  STAFF_INVITATION
+}
+
+model UserAccount {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  displayName     String?
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  memberships     Membership[]
+  patients        Patient[]
+  invitationsSent Invitation[]     @relation("InvitationCreatedBy")
+  authChallenges  AuthChallenge[]
+  ticketEvents    TicketEvent[]
+  auditLogs       AuditLog[]
+}
+
+model Organization {
+  id            String             @id @default(cuid())
+  slug          String             @unique
+  name          String
+  status        OrganizationStatus @default(ACTIVE)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  memberships   Membership[]
+  sites         Site[]
+  patients      Patient[]
+  tickets       Ticket[]
+  invitations   Invitation[]
+  notifications Notification[]
+  outboxEntries OutboxEntry[]
+  auditLogs     AuditLog[]
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  organizationId String
+  userAccountId  String
+  role           MembershipRole
+  status         MembershipStatus @default(INVITED)
+  invitedAt      DateTime         @default(now())
+  activatedAt    DateTime?
+  suspendedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userAccount    UserAccount      @relation(fields: [userAccountId], references: [id], onDelete: Cascade)
+  ticketEvents   TicketEvent[]
+  auditLogs      AuditLog[]
+
+  @@unique([organizationId, userAccountId])
+  @@index([organizationId, role, status])
+}
+
+model Site {
+  id                    String      @id @default(cuid())
+  organizationId        String
+  slug                  String
+  name                  String
+  timezone              String
+  status                SiteStatus  @default(ACTIVE)
+  publicCheckInEnabled  Boolean     @default(true)
+  checkInInstructions   String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  departments           Department[]
+  queues                Queue[]
+  tickets               Ticket[]
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, status])
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  siteId      String
+  slug        String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  queues      Queue[]
+
+  @@unique([siteId, slug])
+  @@index([siteId, name])
+}
+
+model Queue {
+  id                      String      @id @default(cuid())
+  siteId                  String
+  departmentId            String?
+  slug                    String
+  name                    String
+  description             String?
+  status                  QueueStatus @default(OPEN)
+  acceptsOnlineCheckIn    Boolean     @default(true)
+  estimatedServiceMinutes Int         @default(10)
+  maxActiveTickets        Int?
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+  site                    Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  department              Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  tickets                 Ticket[]
+  auditLogs               AuditLog[]
+
+  @@unique([siteId, slug])
+  @@index([siteId, status])
+  @@index([departmentId, status])
+}
+
+model Patient {
+  id             String       @id @default(cuid())
+  organizationId String
+  userAccountId  String?
+  externalRef    String?
+  email          String?
+  phone          String?
+  givenName      String
+  familyName     String
+  dateOfBirth    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userAccount    UserAccount? @relation(fields: [userAccountId], references: [id], onDelete: SetNull)
+  tickets        Ticket[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+
+  @@unique([organizationId, externalRef])
+  @@index([organizationId, familyName, givenName])
+  @@index([organizationId, email])
+}
+
+model Ticket {
+  id               String       @id @default(cuid())
+  organizationId   String
+  siteId           String
+  queueId          String
+  patientId        String
+  publicId         String       @unique
+  queueNumber      Int
+  source           TicketSource @default(PATIENT_WEB)
+  status           TicketStatus @default(WAITING)
+  note             String?
+  checkedInAt      DateTime     @default(now())
+  notifiedAt       DateTime?
+  calledAt         DateTime?
+  serviceStartedAt DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site             Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  queue            Queue        @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  patient          Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  events           TicketEvent[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+
+  @@unique([queueId, queueNumber])
+  @@index([patientId, status])
+  @@index([queueId, status, checkedInAt])
+  @@index([siteId, status])
+}
+
+model TicketEvent {
+  id             String          @id @default(cuid())
+  ticketId       String
+  membershipId   String?
+  actorUserId    String?
+  type           TicketEventType
+  fromStatus     TicketStatus?
+  toStatus       TicketStatus?
+  note           String?
+  payload        Json?
+  createdAt      DateTime        @default(now())
+  ticket         Ticket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  membership     Membership?     @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+  actorUser      UserAccount?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([membershipId, createdAt])
+}
+
+model Invitation {
+  id               String         @id @default(cuid())
+  organizationId   String
+  email            String
+  role             MembershipRole
+  tokenHash        String         @unique
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  revokedAt        DateTime?
+  createdByUserId  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  organization     Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser    UserAccount?   @relation("InvitationCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, email])
+  @@index([organizationId, role, expiresAt])
+}
+
+model Notification {
+  id             String               @id @default(cuid())
+  organizationId String
+  siteId         String?
+  patientId      String?
+  ticketId       String?
+  channel        NotificationChannel
+  template       NotificationTemplate
+  status         NotificationStatus   @default(PENDING)
+  address        String
+  subject        String?
+  payload        Json?
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  failedAt       DateTime?
+  errorCode      String?
+  errorMessage   String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site           Site?                @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  patient        Patient?             @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  ticket         Ticket?              @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, createdAt])
+  @@index([ticketId, status])
+}
+
+model OutboxEntry {
+  id             String       @id @default(cuid())
+  organizationId String?
+  topic          String
+  aggregateType  String
+  aggregateId    String
+  status         OutboxStatus @default(PENDING)
+  payload        Json
+  availableAt    DateTime     @default(now())
+  processedAt    DateTime?
+  failedAt       DateTime?
+  attempts       Int          @default(0)
+  lastError      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([status, availableAt])
+  @@index([aggregateType, aggregateId])
+}
+
+model AuditLog {
+  id               String         @id @default(cuid())
+  organizationId   String?
+  siteId           String?
+  queueId          String?
+  patientId        String?
+  ticketId         String?
+  membershipId     String?
+  actorUserId      String?
+  actorType        AuditActorType @default(USER)
+  action           String
+  entityType       String
+  entityId         String
+  payload          Json?
+  createdAt        DateTime       @default(now())
+  organization     Organization?  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  site             Site?          @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  queue            Queue?         @relation(fields: [queueId], references: [id], onDelete: SetNull)
+  patient          Patient?       @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  ticket           Ticket?        @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  membership       Membership?    @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+  actorUser        UserAccount?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([ticketId, createdAt])
+}
+
+model AuthChallenge {
+  id            String               @id @default(cuid())
+  userAccountId String?
+  email         String
+  purpose       AuthChallengePurpose
+  tokenHash     String?              @unique
+  codeHash      String?
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  userAccount   UserAccount?         @relation(fields: [userAccountId], references: [id], onDelete: SetNull)
+
+  @@index([email, purpose, expiresAt])
+}
