@@ -1,1 +1,1 @@
-export const dbStage = 'v1-foundation'
+export const dbStage = 'v1-domain-schema'

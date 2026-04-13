@@ -31,8 +31,9 @@ Robot/        legacy integration reference
 
 - establishes pnpm workspace boundaries,
 - creates the new app/package roots,
+- introduces the initial Prisma/PostgreSQL private-beta domain schema,
 - preserves legacy code as reference material,
-- prepares the next step for rebuilding the domain schema.
+- prepares the next step for API, auth, and queue-service implementation.
 
 ## What this branch does not do yet
 
