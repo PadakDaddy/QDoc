@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/co
 
 import { AuthGuard } from '../auth/auth.guard'
 import { Roles } from '../auth/roles.decorator'
+import { RolesGuard } from '../auth/roles.guard'
 import { CurrentUser } from '../common/current-user.decorator'
 import type { RequestUser } from '../common/request-user'
 import { EnrollTicketDto } from './dto/enroll-ticket.dto'
@@ -29,7 +30,7 @@ export class TicketsController {
   }
 
   @Patch(':publicId/status')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, RolesGuard)
   @Roles('OWNER', 'ADMIN', 'STAFF')
   updateStatus(
     @Param('publicId') publicId: string,

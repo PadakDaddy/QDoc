@@ -8,6 +8,7 @@ export type RequestMembership = {
 
 export type RequestUser = {
   id: string
+  sessionId: string
   email: string
   displayName: string | null
   memberships: RequestMembership[]
