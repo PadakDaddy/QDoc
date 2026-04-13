@@ -168,6 +168,8 @@ export class AuthService {
       throw new NotFoundException('Auth challenge not found')
     }
 
+    const challengeUser = challenge.userAccount
+
     this.assertChallengeUsable(challenge)
 
     const tokenMatches = input.token ? safeHashCompare(input.token, challenge.tokenHash) : false
@@ -196,7 +198,7 @@ export class AuthService {
           id: challenge.userAccountId!,
         },
         data: {
-          emailVerifiedAt: challenge.userAccount.emailVerifiedAt ?? new Date(),
+          emailVerifiedAt: challengeUser.emailVerifiedAt ?? new Date(),
           lastLoginAt: new Date(),
         },
       })

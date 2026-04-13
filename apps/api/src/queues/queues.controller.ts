@@ -1,10 +1,11 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common'
 
 import { AuthGuard } from '../auth/auth.guard'
 import { Roles } from '../auth/roles.decorator'
 import { RolesGuard } from '../auth/roles.guard'
 import { CurrentUser } from '../common/current-user.decorator'
 import type { RequestUser } from '../common/request-user'
+import { UpdateQueueSettingsDto } from './dto/update-queue-settings.dto'
 import { QueuesService } from './queues.service'
 
 @Controller('organizations/:organizationSlug/sites/:siteSlug/queues')
@@ -30,5 +31,18 @@ export class QueuesController {
     @CurrentUser() user: RequestUser,
   ) {
     return this.queuesService.getQueueBoard(organizationSlug, siteSlug, queueSlug, user)
+  }
+
+  @Patch(':queueSlug')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('OWNER', 'ADMIN')
+  updateQueueSettings(
+    @Param('organizationSlug') organizationSlug: string,
+    @Param('siteSlug') siteSlug: string,
+    @Param('queueSlug') queueSlug: string,
+    @CurrentUser() user: RequestUser,
+    @Body() body: UpdateQueueSettingsDto,
+  ) {
+    return this.queuesService.updateQueueSettings(organizationSlug, siteSlug, queueSlug, user, body)
   }
 }
