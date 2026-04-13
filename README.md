@@ -32,6 +32,7 @@ Robot/        legacy integration reference
 - establishes pnpm workspace boundaries,
 - creates the new app/package roots,
 - introduces the initial Prisma/PostgreSQL private-beta domain schema,
+- adds first-pass NestJS API scaffolding on top of the new schema,
 - preserves legacy code as reference material,
 - prepares the next step for API, auth, and queue-service implementation.
 

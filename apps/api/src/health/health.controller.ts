@@ -7,7 +7,7 @@ export class HealthController {
     return {
       service: 'api',
       status: 'ok',
-      stage: 'v1-foundation',
+      stage: 'v1-domain-schema',
     }
   }
 }
