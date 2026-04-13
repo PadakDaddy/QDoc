@@ -1,10 +1,13 @@
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build output
 dist/
 coverage/
 .vite/
+.next/
+.turbo/
 *.tsbuildinfo
 
 # Environment files
