@@ -111,6 +111,7 @@ model UserAccount {
   patients        Patient[]
   invitationsSent Invitation[]     @relation("InvitationCreatedBy")
   authChallenges  AuthChallenge[]
+  authSessions    AuthSession[]
   ticketEvents    TicketEvent[]
   auditLogs       AuditLog[]
 }
@@ -395,6 +396,24 @@ model AuthChallenge {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   userAccount   UserAccount?         @relation(fields: [userAccountId], references: [id], onDelete: SetNull)
+  sessions      AuthSession[]
 
   @@index([email, purpose, expiresAt])
+}
+
+model AuthSession {
+  id            String        @id @default(cuid())
+  userAccountId String
+  challengeId   String?
+  tokenHash     String        @unique
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  lastUsedAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  userAccount   UserAccount   @relation(fields: [userAccountId], references: [id], onDelete: Cascade)
+  challenge     AuthChallenge? @relation(fields: [challengeId], references: [id], onDelete: SetNull)
+
+  @@index([userAccountId, revokedAt])
+  @@index([expiresAt])
 }
