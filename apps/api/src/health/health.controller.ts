@@ -1,0 +1,13 @@
+import { Controller, Get } from '@nestjs/common'
+
+@Controller('health')
+export class HealthController {
+  @Get()
+  getHealth() {
+    return {
+      service: 'api',
+      status: 'ok',
+      stage: 'v1-foundation',
+    }
+  }
+}
