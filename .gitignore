@@ -1,28 +1,17 @@
-# Dependencies
-node_modules/
-
-# Build output
-dist/
-coverage/
-.vite/
-*.tsbuildinfo
-
-# Environment files
-.env.local
-.env.*.local
-.env.example
-
-# Logs
+node_modules
+.next
+.turbo
+.vercel
+dist
+coverage
+.env
+.env.*
+!.env.example
+!.env.staging.example
+.DS_Store
+pnpm-debug.log*
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 
-# Editor and OS files
-.vs/
-.vscode/
-*.user
-*.suo
-Thumbs.db
-.DS_Store
-
+*.tsbuildinfo
