@@ -1,0 +1,25 @@
+{
+  "name": "@qdoc/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts",
+    "verify:outbox": "tsx src/verify-outbox.ts",
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@qdoc/db": "workspace:*",
+    "nodemailer": "^8.0.7"
+  },
+  "devDependencies": {
+    "@qdoc/config": "workspace:*",
+    "@types/node": "^22.15.29",
+    "@types/nodemailer": "^8.0.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

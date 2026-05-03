@@ -1,0 +1,168 @@
+services:
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env.staging}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+  web:
+    image: qdoc-app:deploy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://api:4000
+    command: ["pnpm", "start:web"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  api:
+    image: qdoc-app:deploy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      APP_ENV: ${APP_ENV:?Set APP_ENV in .env.staging}
+      ALLOW_CONSOLE_OTP: ${ALLOW_CONSOLE_OTP:-false}
+      ALLOW_FIXED_OTP: ${ALLOW_FIXED_OTP:-false}
+      FIXED_OTP_EMAIL: ${FIXED_OTP_EMAIL:-}
+      FIXED_OTP_CODE: ${FIXED_OTP_CODE:-}
+      API_HOST: 0.0.0.0
+      API_PORT: 4000
+      APP_URL: ${APP_URL:?Set APP_URL in .env.staging}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:?Set EMAIL_PROVIDER in .env.staging}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-2525}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env.staging}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.staging}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env.staging}
+    command: ["pnpm", "start:api"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/health >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  worker:
+    image: qdoc-app:deploy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      APP_ENV: ${APP_ENV:?Set APP_ENV in .env.staging}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:?Set EMAIL_PROVIDER in .env.staging}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-2525}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env.staging}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.staging}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env.staging}
+      WORKER_POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS:-5000}
+      WORKER_OUTBOX_BATCH_SIZE: ${WORKER_OUTBOX_BATCH_SIZE:-10}
+      WORKER_OUTBOX_MAX_ATTEMPTS: ${WORKER_OUTBOX_MAX_ATTEMPTS:-5}
+    command: ["pnpm", "start:worker"]
+
+  migrate:
+    image: qdoc-app:deploy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      APP_ENV: ${APP_ENV:?Set APP_ENV in .env.staging}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.staging}
+    command: ["pnpm", "db:migrate:deploy"]
+
+  seed:
+    image: qdoc-app:deploy
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      APP_ENV: ${APP_ENV:?Set APP_ENV in .env.staging}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env.staging}
+    command: ["pnpm", "db:seed:staging"]
+
+  postgres:
+    image: postgres:16.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env.staging}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env.staging}
+      POSTGRES_PASSWORD: ${QDOC_DB_SECRET:?Set QDOC_DB_SECRET in .env.staging}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4.1-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  caddy-data:
+  caddy-config:
+  postgres-data:
+  redis-data:

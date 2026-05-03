@@ -1,0 +1,7 @@
+{
+  "extends": "@qdoc/config/tsconfig/base.json",
+  "files": [],
+  "references": [
+    { "path": "apps/web" }
+  ]
+}
